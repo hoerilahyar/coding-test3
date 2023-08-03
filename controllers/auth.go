@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/harranali/authority"
 	"github.com/hoerilahyar/coding-test3/models"
 	"github.com/hoerilahyar/coding-test3/utils/token"
 )
@@ -53,7 +54,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	c.JSON(http.StatusOK, gin.H{"message": "hooray! you got the token", "token": token})
 
 }
 
@@ -86,18 +87,210 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "registration success"})
+	c.JSON(http.StatusCreated, gin.H{"message": "registration success"})
 }
 
-func CreateRole(c *gin.Context)             {}
-func CreatePermission(c *gin.Context)       {}
-func ShowAllRole(c *gin.Context)            {}
-func ShowAllPermission(c *gin.Context)      {}
-func AssignRole(c *gin.Context)             {}
-func AssignPermission(c *gin.Context)       {}
-func RevokeRole(c *gin.Context)             {}
-func RevokePermission(c *gin.Context)       {}
-func AssignRoleToUser(c *gin.Context)       {}
-func AssignPermissionToUser(c *gin.Context) {}
-func RevokeRoleToUser(c *gin.Context)       {}
-func RevokePermissionToUser(c *gin.Context) {}
+type RbacInput struct {
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+type AssignInput struct {
+	Roles       []string `json:"roles"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
+	Permission  string   `json:"permission"`
+	Users       []string `json:"users"`
+	User        string   `json:"user"`
+}
+
+func CreateRole(c *gin.Context) {
+	var input RbacInput
+	var tx = models.AUTH.BeginTX()
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := tx.CreateRole(authority.Role{
+		Name: input.Name,
+		Slug: input.Slug,
+	})
+
+	if err != nil {
+		tx.Rollback() // transaction rollback incase of error
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Role added"})
+
+}
+
+func CreatePermission(c *gin.Context) {
+	var input RbacInput
+	var tx = models.AUTH.BeginTX()
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := tx.CreatePermission(authority.Permission{
+		Name: input.Name,
+		Slug: input.Slug,
+	})
+
+	if err != nil {
+		tx.Rollback() // transaction rollback incase of error
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Permission added"})
+}
+
+func ShowAllRole(c *gin.Context) {
+	roles, err := models.AUTH.GetAllRoles()
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Here is data!", "data": roles})
+}
+
+func ShowAllPermission(c *gin.Context) {
+	permissions, err := models.AUTH.GetAllPermissions()
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Here is data!", "data": permissions})
+}
+
+func AssignPermissionsToRole(c *gin.Context) {
+	var input AssignInput
+	var tx = models.AUTH.BeginTX()
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if input.Permissions == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Permission empty"})
+		return
+	}
+
+	if input.Role == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role empty"})
+		return
+	}
+
+	err := tx.AssignPermissionsToRole(input.Role, input.Permissions)
+
+	if err != nil {
+		tx.Rollback() // transaction rollback incase of error
+		c.JSON(http.StatusBadRequest, gin.H{"error": "assign failed"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Permission assigned"})
+}
+
+func RevokeRolePermission(c *gin.Context) {
+	var input AssignInput
+	var tx = models.AUTH.BeginTX()
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if input.Permission == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Permission empty"})
+		return
+	}
+
+	if input.Role == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role empty"})
+		return
+	}
+
+	err := tx.RevokeRolePermission(input.Role, input.Permission)
+
+	if err != nil {
+		tx.Rollback() // transaction rollback incase of error
+		c.JSON(http.StatusBadRequest, gin.H{"error": "revoke failed"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Permission revoked"})
+
+}
+
+func AssignRoleToUser(c *gin.Context) {
+	var input AssignInput
+	var tx = models.AUTH.BeginTX()
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if input.User == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User empty"})
+		return
+	}
+
+	if input.Role == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role empty"})
+		return
+	}
+
+	err := tx.AssignRoleToUser(input.User, input.Role)
+
+	if err != nil {
+		tx.Rollback() // transaction rollback incase of error
+		c.JSON(http.StatusBadRequest, gin.H{"error": "assign failed"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Role assigned to user"})
+
+}
+
+func RevokeRoleToUser(c *gin.Context) {
+	var input AssignInput
+	var tx = models.AUTH.BeginTX()
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if input.User == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User empty"})
+		return
+	}
+
+	if input.Role == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role empty"})
+		return
+	}
+
+	err := tx.RevokeUserRole(input.User, input.Role)
+
+	if err != nil {
+		tx.Rollback() // transaction rollback incase of error
+		c.JSON(http.StatusBadRequest, gin.H{"error": "revoke failed"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Role revoke from user"})
+}

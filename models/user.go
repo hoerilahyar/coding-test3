@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/hoerilahyar/coding-test3/utils/token"
-	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type User struct {
@@ -17,6 +17,11 @@ type User struct {
 	Username    string `gorm:"size:255;not null;unique" json:"username"`
 	Password    string `gorm:"size:255;not null;" json:"password"`
 	Transaction []TransactionHeader
+}
+
+// TableName overrides
+func (User) TableName() string {
+	return "users"
 }
 
 func GetUserByID(uid uint) (User, error) {

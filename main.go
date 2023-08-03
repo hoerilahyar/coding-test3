@@ -17,37 +17,39 @@ func main() {
 
 	auth.POST("/register", controllers.Register)
 	auth.POST("/login", controllers.Login)
-	// auth.POST("/login", controllers.Login)
 
+	// RBAC routes
 	authorize := r.Group("/api/auth")
 	authorize.Use(middlewares.JwtAuthMiddleware())
-	authorize.Use(middlewares.Authorize(true))
+	authorize.Use(middlewares.AdminAuthMiddleware())
 	authorize.GET("/role", controllers.ShowAllRole)
 	authorize.GET("/permission", controllers.ShowAllPermission)
 	authorize.POST("/create-role", controllers.CreateRole)
 	authorize.POST("/create-permission", controllers.CreatePermission)
-	authorize.PUT("/assign-role", controllers.AssignRole)
-	authorize.PUT("/assign-permission", controllers.AssignPermission)
-	authorize.DELETE("/revoke-role", controllers.RevokeRole)
-	authorize.DELETE("/revoke-permission", controllers.RevokePermission)
+	authorize.PUT("/assign-permissions-to-role", controllers.AssignPermissionsToRole)
+	authorize.DELETE("/revoke-permission-from-role", controllers.RevokeRolePermission)
 	authorize.PUT("/assign-role-to-user", controllers.AssignRoleToUser)
-	authorize.PUT("/assign-permission-to-user", controllers.AssignPermissionToUser)
 	authorize.DELETE("/revoke-role-to-user", controllers.RevokeRoleToUser)
-	authorize.DELETE("/revoke-permission-to-user", controllers.RevokePermissionToUser)
 
+	// product routes
 	product := r.Group("/api/product")
 	product.Use(middlewares.JwtAuthMiddleware())
 	product.GET("/", controllers.ShowAllProduct)
-	product.GET("/show", controllers.ShowProduct)
-	product.POST("/create", controllers.CreateProduct)
-	product.PUT("/update", controllers.UpdateProduct)
-	product.DELETE("/delete", controllers.DeleteProduct)
+	product.GET("/:id", controllers.ShowProduct)
 
+	// protect only admin can create update delete product
+	product.Use(middlewares.AdminAuthMiddleware())
+	product.POST("/", controllers.CreateProduct)
+	product.PUT("/:id", controllers.UpdateProduct)
+	product.DELETE("/:id", controllers.DeleteProduct)
+
+	// transaction routes
 	transaction := r.Group("/api/transaction")
 	transaction.Use(middlewares.JwtAuthMiddleware())
-	transaction.GET("/show", controllers.ShowTransaction)
+	transaction.GET("/", controllers.ShowAllTransaction)
+	transaction.GET("/:id", controllers.ShowTransaction)
 	transaction.POST("/add-to-cart", controllers.AddToCartTransaction)
-	transaction.POST("/checkout", controllers.CheckoutTransaction)
+	transaction.POST("/checkout/:id", controllers.CheckoutTransaction)
 
 	r.Run(":8080")
 
