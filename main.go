@@ -18,6 +18,16 @@ func main() {
 	auth.POST("/register", controllers.Register)
 	auth.POST("/login", controllers.Login)
 
+	// User Routes
+	user := r.Group("/api/user")
+	user.Use(middlewares.JwtAuthMiddleware())
+	user.Use(middlewares.AdminAuthMiddleware())
+	user.GET("/", controllers.ShowAllUsers)
+	user.GET("/:id", controllers.ShowUser)
+	user.POST("/", controllers.CreateUser)
+	user.PUT("/:id", controllers.UpdateUser)
+	user.DELETE("/:id", controllers.DeleteUser)
+
 	// RBAC routes
 	authorize := r.Group("/api/auth")
 	authorize.Use(middlewares.JwtAuthMiddleware())
